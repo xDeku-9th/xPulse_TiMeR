@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Ultimate WCA Timer Pro</title>
   
   <script type="module">
@@ -10,7 +10,11 @@
   </script>
 
   <style>
-    * { box-sizing: border-box; font-family: var(--main-font, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif); }
+    * { 
+      box-sizing: border-box; 
+      font-family: var(--main-font, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif); 
+      -webkit-tap-highlight-color: transparent;
+    }
     
     :root {
       --bg-color: #121214;
@@ -33,28 +37,34 @@
       background-attachment: fixed;
       color: var(--text-color);
       margin: 0;
-      padding: 20px;
+      padding: 12px;
       display: flex;
       flex-direction: column;
       align-items: center;
       min-height: 100vh;
+      touch-action: manipulation;
       transition: background-color 0.3s, color 0.3s;
     }
     
     .container { width: 100%; max-width: 900px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
     
     .top-bar { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
-    .controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; }
+    .controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; width: 100%; }
     
+    @media (min-width: 600px) {
+      .controls { width: auto; }
+    }
+
     select, button, input[type="text"] {
       background: var(--card-bg);
       color: var(--text-color);
       border: 1px solid var(--border-color);
-      padding: 8px 12px;
-      border-radius: 6px;
+      padding: 10px 14px;
+      border-radius: 8px;
       cursor: pointer;
-      font-size: 0.9rem;
+      font-size: 0.95rem;
       backdrop-filter: blur(8px);
+      min-height: 42px;
     }
     select:hover, button:hover { opacity: 0.9; }
 
@@ -64,7 +74,7 @@
       align-items: center;
       background: var(--card-bg);
       padding: 6px 10px;
-      border-radius: 6px;
+      border-radius: 8px;
       border: 1px solid var(--border-color);
     }
 
@@ -84,13 +94,31 @@
     
     .settings-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
       gap: 10px;
     }
 
     .setting-item { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; }
     .setting-item label { color: #888; text-transform: uppercase; font-size: 10px; font-weight: bold; }
-    .setting-item input[type="color"] { width: 100%; height: 34px; border: 1px solid var(--border-color); background: none; border-radius: 6px; cursor: pointer; }
+    .setting-item input[type="color"] { width: 100%; height: 38px; border: 1px solid var(--border-color); background: none; border-radius: 6px; cursor: pointer; }
+
+    .shortcut-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      font-size: 0.75rem;
+      color: #aaa;
+      background: rgba(0,0,0,0.2);
+      padding: 8px;
+      border-radius: 6px;
+    }
+    .shortcut-legend kbd {
+      background: var(--border-color);
+      color: var(--text-color);
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
 
     .scramble-box {
       background: var(--card-bg);
@@ -117,40 +145,65 @@
       justify-content: center;
       align-items: center;
       width: 100%;
-      min-height: 200px;
+      min-height: 180px;
       backdrop-filter: blur(8px);
     }
     
-    twisty-player { width: 100%; max-width: 300px; height: 200px; }
+    twisty-player { width: 100%; max-width: 280px; height: 180px; }
 
-    .timer-display { font-size: 85px; font-family: monospace; font-weight: bold; margin: 5px 0; user-select: none; transition: color 0.15s ease; }
+    .timer-area {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 0;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+
+    .timer-display { 
+      font-size: clamp(60px, 18vw, 95px); 
+      font-family: monospace; 
+      font-weight: bold; 
+      margin: 5px 0; 
+      user-select: none; 
+      transition: color 0.15s ease; 
+    }
     .timer-display.inspection { color: var(--timer-inspection); }
     .timer-display.holding { color: var(--timer-holding); }
     .timer-display.ready { color: var(--timer-ready); }
     .timer-display.running { color: var(--timer-running); }
 
-    .manual-entry-box { display: flex; gap: 8px; align-items: center; }
-    .manual-entry-box input { width: 140px; text-align: center; font-size: 1rem; }
+    .mobile-hint {
+      font-size: 0.8rem;
+      color: #777;
+      margin-top: -5px;
+    }
 
-    .penalty-bar { display: flex; gap: 10px; align-items: center; justify-content: center; }
+    .manual-entry-box { display: flex; gap: 8px; align-items: center; width: 100%; justify-content: center; }
+    .manual-entry-box input { width: 150px; text-align: center; font-size: 1rem; }
+
+    .penalty-bar { display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap; }
     .btn-p2 { background: #e65100; color: white; }
     .btn-dnf { background: #b71c1c; color: white; }
 
-    .stats-container { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; width: 100%; text-align: center; }
-    .stat-card { background: var(--card-bg); padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); backdrop-filter: blur(8px); }
-    .stat-card div:first-child { font-size: 10px; color: #888; text-transform: uppercase; }
-    .stat-card div:last-child { font-size: 18px; font-weight: bold; margin-top: 2px; }
+    .stats-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(65px, 1fr)); gap: 8px; width: 100%; text-align: center; }
+    .stat-card { background: var(--card-bg); padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); backdrop-filter: blur(8px); }
+    .stat-card div:first-child { font-size: 9px; color: #888; text-transform: uppercase; }
+    .stat-card div:last-child { font-size: 16px; font-weight: bold; margin-top: 2px; }
 
     .trend-card { width: 100%; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; backdrop-filter: blur(8px); }
     .trend-title { font-size: 11px; color: #888; text-transform: uppercase; margin-bottom: 6px; }
     canvas#chart-canvas { width: 100%; height: 100px; display: block; }
 
     .history-section { width: 100%; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; max-height: 220px; overflow-y: auto; backdrop-filter: blur(8px); }
-    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem; }
-    th, td { padding: 6px 8px; border-bottom: 1px solid var(--border-color); }
-    th { color: #888; font-size: 11px; }
-    .btn-del { padding: 2px 6px; font-size: 11px; background: #900; color: white; border: none; border-radius: 4px; cursor: pointer; }
-    .btn-opt { padding: 2px 5px; font-size: 10px; margin-right: 2px; border: 1px solid var(--border-color); }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem; }
+    th, td { padding: 8px 6px; border-bottom: 1px solid var(--border-color); }
+    th { color: #888; font-size: 10px; }
+    .btn-del { padding: 4px 8px; font-size: 11px; background: #900; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    .btn-opt { padding: 4px 6px; font-size: 10px; margin-right: 2px; border: 1px solid var(--border-color); }
   </style>
 </head>
 <body>
@@ -182,19 +235,20 @@
           <option value="sq1">Square-1</option>
         </optgroup>
       </select>
-      <button id="genBtn">Next Scramble</button>
-      <button id="manualBtn">⌨️ Manual Entry</button>
+      <button id="genBtn" title="Shortcut: N">Next</button>
+      <button id="manualBtn" title="Shortcut: M">⌨️ Manual</button>
     </div>
 
-    <div class="session-bar">
-      <span style="font-size:12px; opacity:0.8;">Session:</span>
-      <select id="sessionSelect"></select>
-      <button id="newSessionBtn">+</button>
-      <button id="delSessionBtn" style="background:#800;">X</button>
-    </div>
-
-    <div style="display: flex; gap: 6px; align-items: center;">
-      <button id="toggleSettingsBtn">⚙️ Settings</button>
+    <div class="session-bar" style="width: 100%; justify-content: space-between;">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span style="font-size:12px; opacity:0.8;">Session:</span>
+        <select id="sessionSelect"></select>
+      </div>
+      <div>
+        <button id="newSessionBtn">+</button>
+        <button id="delSessionBtn" style="background:#800;">X</button>
+        <button id="toggleSettingsBtn" title="Shortcut: S">⚙️</button>
+      </div>
     </div>
   </div>
 
@@ -204,7 +258,7 @@
       <div class="setting-item">
         <label>Inspection Voice Alert</label>
         <label style="cursor:pointer; display:flex; align-items:center; gap:6px; text-transform:none; font-size:0.9rem; color:var(--text-color);">
-          <input type="checkbox" id="voiceAlertToggle" checked> Enable Voice Alerts
+          <input type="checkbox" id="voiceAlertToggle" checked> Enable Voice
         </label>
       </div>
       <div class="setting-item"><label>Background Image</label><input type="file" id="bgFileInput" accept="image/*"></div>
@@ -224,6 +278,17 @@
         </select>
       </div>
     </div>
+
+    <div class="shortcut-legend">
+      <span><kbd>Space</kbd> Start/Stop</span>
+      <span><kbd>N</kbd> Next Scramble</span>
+      <span><kbd>2</kbd> +2 Last</span>
+      <span><kbd>D</kbd> DNF Last</span>
+      <span><kbd>M</kbd> Manual Input</span>
+      <span><kbd>Del</kbd> Delete Last</span>
+      <span><kbd>Esc</kbd> Reset Timer</span>
+    </div>
+
     <div style="display: flex; gap: 8px;">
       <button id="resetBgBtn" style="background: #555;">Remove BG Image</button>
       <button id="resetColorsBtn" style="background: #555;">Reset Colors</button>
@@ -233,7 +298,10 @@
   <div class="scramble-box" id="scrambleText">Generating...</div>
   <div class="preview" id="preview-container"></div>
 
-  <div id="timer" class="timer-display">0.00</div>
+  <div class="timer-area" id="timerArea">
+    <div id="timer" class="timer-display">0.00</div>
+    <div class="mobile-hint">Touch & hold or press Space to start</div>
+  </div>
 
   <div class="manual-entry-box" id="manualContainer" style="display: none;">
     <input type="text" id="manualInput" placeholder="12.34 or 1:02.5" />
@@ -242,8 +310,8 @@
 
   <div class="penalty-bar">
     <label style="font-size:12px; cursor:pointer;"><input type="checkbox" id="inspectionToggle"> WCA 15s Inspection</label>
-    <button class="btn-p2" id="lastP2Btn">+2 Last</button>
-    <button class="btn-dnf" id="lastDnfBtn">DNF Last</button>
+    <button class="btn-p2" id="lastP2Btn" title="Shortcut: 2">+2 Last</button>
+    <button class="btn-dnf" id="lastDnfBtn" title="Shortcut: D">DNF Last</button>
   </div>
 
   <div class="stats-container">
@@ -601,7 +669,7 @@
   submitManualBtn.onclick = handleManualSubmit;
   manualInput.onkeydown = (e) => { if (e.key === "Enter") handleManualSubmit(); };
 
-  // --- UNIFIED TIMER & INSPECTION ENGINE ---
+  // --- UNIFIED TIMER & INSPECTION ENGINE (KEYBOARD + TOUCH) ---
   let timerState = "stopped";
   let startTime = 0;
   let timerInterval = null;
@@ -610,69 +678,150 @@
   let inspectionTime = 15;
 
   const timerEl = document.getElementById("timer");
+  const timerArea = document.getElementById("timerArea");
   const useInspection = document.getElementById("inspectionToggle");
 
-  window.addEventListener("keydown", (e) => {
-    if (["INPUT", "BUTTON", "SELECT"].includes(document.activeElement.tagName)) return;
+  function handlePressStart(e) {
+    if (e) {
+      const targetTag = e.target.tagName;
+      if (["INPUT", "BUTTON", "SELECT", "A", "LABEL"].includes(targetTag)) return;
+      if (e.type === "touchstart") e.preventDefault();
+    }
 
-    if (e.key.toLowerCase() === "m") {
+    if (timerState === "running") {
+      stopTimer();
+      return;
+    }
+
+    if (timerState === "stopped") {
+      if (useInspection.checked) {
+        startInspection();
+      } else {
+        timerState = "holding";
+        timerEl.className = "timer-display holding";
+        holdTimeout = setTimeout(() => {
+          timerState = "ready";
+          timerEl.className = "timer-display ready";
+        }, 300);
+      }
+    } else if (timerState === "inspecting") {
+      timerState = "holding";
+      timerEl.className = "timer-display holding";
+      holdTimeout = setTimeout(() => {
+        timerState = "ready";
+        clearInterval(inspectionInterval);
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        timerEl.className = "timer-display ready";
+      }, 300);
+    }
+  }
+
+  function handlePressEnd(e) {
+    if (e && e.type === "touchend") e.preventDefault();
+
+    if (timerState === "ready") {
+      startTimer();
+    } else if (timerState === "holding") {
+      clearTimeout(holdTimeout);
+      if (useInspection.checked && inspectionInterval) {
+        timerState = "inspecting";
+        timerEl.className = "timer-display inspection";
+      } else {
+        timerState = "stopped";
+        timerEl.className = "timer-display";
+      }
+    }
+  }
+
+  function resetTimerState() {
+    clearInterval(timerInterval);
+    clearInterval(inspectionInterval);
+    clearTimeout(holdTimeout);
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    timerState = "stopped";
+    timerEl.className = "timer-display";
+    timerEl.textContent = "0.00";
+  }
+
+  // KEYBOARD SHORTCUT ENGINE
+  window.addEventListener("keydown", (e) => {
+    // Disable shortcuts when focused on text fields or select elements
+    if (["INPUT", "SELECT"].includes(document.activeElement.tagName)) return;
+
+    const key = e.key.toLowerCase();
+
+    // Reset Timer (Escape)
+    if (e.key === "Escape") {
+      resetTimerState();
+      return;
+    }
+
+    // Spacebar Timer Control
+    if (e.code === "Space") {
+      e.preventDefault();
+      if (e.repeat) return;
+      handlePressStart();
+      return;
+    }
+
+    // Ignore other keypresses while timer is active
+    if (timerState !== "stopped") return;
+
+    // Next Scramble (N)
+    if (key === "n") {
+      e.preventDefault();
+      refresh();
+      return;
+    }
+
+    // +2 Penalty on Last Solve (2)
+    if (key === "2") {
+      e.preventDefault();
+      togglePenalty(0, "+2");
+      return;
+    }
+
+    // DNF Penalty on Last Solve (D)
+    if (key === "d") {
+      e.preventDefault();
+      togglePenalty(0, "DNF");
+      return;
+    }
+
+    // Delete Last Solve (Delete / Backspace)
+    if (e.key === "Delete" || e.key === "Backspace") {
+      e.preventDefault();
+      const list = sessions[currentSession];
+      if (list.length > 0) {
+        deleteSolve(list[0].id);
+      }
+      return;
+    }
+
+    // Toggle Manual Entry (M)
+    if (key === "m") {
       e.preventDefault();
       manualContainer.style.display = manualContainer.style.display === "none" ? "flex" : "none";
       if (manualContainer.style.display === "flex") manualInput.focus();
       return;
     }
 
-    if (e.code === "Space") {
+    // Toggle Settings Panel (S)
+    if (key === "s") {
       e.preventDefault();
-      if (e.repeat) return;
-
-      if (timerState === "running") {
-        stopTimer();
-        return;
-      }
-
-      if (timerState === "stopped") {
-        if (useInspection.checked) {
-          startInspection();
-        } else {
-          timerState = "holding";
-          timerEl.className = "timer-display holding";
-          holdTimeout = setTimeout(() => {
-            timerState = "ready";
-            timerEl.className = "timer-display ready";
-          }, 300);
-        }
-      } else if (timerState === "inspecting") {
-        timerState = "holding";
-        timerEl.className = "timer-display holding";
-        holdTimeout = setTimeout(() => {
-          timerState = "ready";
-          clearInterval(inspectionInterval);
-          if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-          timerEl.className = "timer-display ready";
-        }, 300);
-      }
+      settingsPanel.classList.toggle("active");
+      return;
     }
   });
 
   window.addEventListener("keyup", (e) => {
-    if (["INPUT", "BUTTON", "SELECT"].includes(document.activeElement.tagName)) return;
-
-    if (e.code === "Space") {
-      if (timerState === "ready") {
-        startTimer();
-      } else if (timerState === "holding") {
-        clearTimeout(holdTimeout);
-        if (useInspection.checked && inspectionInterval) {
-          timerState = "inspecting";
-          timerEl.className = "timer-display inspection";
-        } else {
-          timerState = "stopped";
-          timerEl.className = "timer-display";
-        }
-      }
-    }
+    if (["INPUT", "SELECT"].includes(document.activeElement.tagName)) return;
+    if (e.code === "Space") handlePressEnd();
   });
+
+  // Touch controls
+  window.addEventListener("touchstart", (e) => handlePressStart(e), { passive: false });
+  window.addEventListener("touchend", (e) => handlePressEnd(e), { passive: false });
 
   function startInspection() {
     timerState = "inspecting";
