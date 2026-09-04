@@ -789,6 +789,63 @@
   updateSessionSelect();
   refresh();
   updateStatsAndHistory();
+  <script>
+  let timerState = 'idle'; // 'idle', 'holding', 'ready', 'running'
+  let holdTimeout = null;
+  let startTime = 0;
+  let timerInterval = null;
+
+  // Adjust 'timer' if your timer display uses a different ID
+  const timerDisplay = document.getElementById('timer') || document.querySelector('.timer');
+
+  window.addEventListener('keydown', (e) => {
+    if (e.code !== 'Space') return;
+    e.preventDefault(); // Prevents page scrolling
+
+    if (timerState === 'running') {
+      stopTimer();
+      timerState = 'idle';
+      return;
+    }
+
+    if (e.repeat) return;
+
+    if (timerState === 'idle') {
+      timerState = 'holding';
+      if (timerDisplay) timerDisplay.style.color = 'red';
+
+      holdTimeout = setTimeout(() => {
+        timerState = 'ready';
+        if (timerDisplay) timerDisplay.style.color = 'limegreen';
+      }, 300);
+    }
+  });
+
+  window.addEventListener('keyup', (e) => {
+    if (e.code !== 'Space') return;
+
+    if (timerState === 'ready') {
+      startTimer();
+      timerState = 'running';
+      if (timerDisplay) timerDisplay.style.color = '';
+    } else if (timerState === 'holding') {
+      clearTimeout(holdTimeout);
+      timerState = 'idle';
+      if (timerDisplay) timerDisplay.style.color = '';
+    }
+  });
+
+  function startTimer() {
+    startTime = performance.now();
+    timerInterval = setInterval(() => {
+      const elapsed = (performance.now() - startTime) / 1000;
+      if (timerDisplay) timerDisplay.textContent = elapsed.toFixed(2);
+    }, 10);
+  }
+
+  function stopTimer() {
+    clearInterval(timerInterval);
+  }
 </script>
 </body>
 </html>
