@@ -201,6 +201,12 @@
   <!-- SETTINGS PANEL -->
   <div class="settings-panel" id="settingsPanel">
     <div class="settings-grid">
+      <div class="setting-item">
+        <label>Inspection Voice Alert</label>
+        <label style="cursor:pointer; display:flex; align-items:center; gap:6px; text-transform:none; font-size:0.9rem; color:var(--text-color);">
+          <input type="checkbox" id="voiceAlertToggle" checked> Enable Voice Alerts
+        </label>
+      </div>
       <div class="setting-item"><label>Background Image</label><input type="file" id="bgFileInput" accept="image/*"></div>
       <div class="setting-item"><label>Background Color</label><input type="color" id="bgColorPicker" value="#121214"></div>
       <div class="setting-item"><label>Card Background</label><input type="color" id="cardBgColorPicker" value="#202024"></div>
@@ -310,6 +316,17 @@
     localStorage.setItem("wca_curr_session_v2", currentSession);
     updateSessionSelect();
     updateStatsAndHistory();
+  }
+
+  // --- VOICE SPEECH ENGINE ---
+  const voiceAlertToggle = document.getElementById("voiceAlertToggle");
+
+  function speak(text) {
+    if (!voiceAlertToggle.checked || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.2;
+    window.speechSynthesis.speak(utterance);
   }
 
   // --- SCRAMBLE GENERATORS ---
@@ -487,7 +504,8 @@
       timerReady: timerReadyColorPicker.value,
       timerRunning: timerRunningColorPicker.value,
       timerInspection: timerInspectionColorPicker.value,
-      font: fontSelect.value
+      font: fontSelect.value,
+      voiceAlert: voiceAlertToggle.checked
     };
     localStorage.setItem("wca_theme_config_v2", JSON.stringify(config));
   }
@@ -518,10 +536,11 @@
     timerRunningColorPicker.value = "#2196f3";
     timerInspectionColorPicker.value = "#ff9800";
     fontSelect.value = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    voiceAlertToggle.checked = true;
     applySettings();
   };
 
-  [bgColorPicker, cardBgColorPicker, textColorPicker, timerReadyColorPicker, timerRunningColorPicker, timerInspectionColorPicker, fontSelect].forEach(el => {
+  [bgColorPicker, cardBgColorPicker, textColorPicker, timerReadyColorPicker, timerRunningColorPicker, timerInspectionColorPicker, fontSelect, voiceAlertToggle].forEach(el => {
     el.oninput = applySettings;
   });
 
@@ -538,6 +557,7 @@
       timerRunningColorPicker.value = savedConfig.timerRunning || "#2196f3";
       timerInspectionColorPicker.value = savedConfig.timerInspection || "#ff9800";
       fontSelect.value = savedConfig.font || "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      voiceAlertToggle.checked = savedConfig.voiceAlert !== undefined ? savedConfig.voiceAlert : true;
       applySettings();
     }
   }
@@ -582,7 +602,6 @@
   manualInput.onkeydown = (e) => { if (e.key === "Enter") handleManualSubmit(); };
 
   // --- UNIFIED TIMER & INSPECTION ENGINE ---
-  // States: 'stopped', 'inspecting', 'holding', 'ready', 'running'
   let timerState = "stopped";
   let startTime = 0;
   let timerInterval = null;
@@ -629,6 +648,7 @@
         holdTimeout = setTimeout(() => {
           timerState = "ready";
           clearInterval(inspectionInterval);
+          if ('speechSynthesis' in window) window.speechSynthesis.cancel();
           timerEl.className = "timer-display ready";
         }, 300);
       }
@@ -659,10 +679,17 @@
     inspectionTime = 15;
     timerEl.className = "timer-display inspection";
     timerEl.textContent = inspectionTime;
+
     inspectionInterval = setInterval(() => {
       inspectionTime--;
+      
+      if (inspectionTime === 7) speak("8 seconds");
+      else if (inspectionTime === 3) speak("12 seconds");
+      else if (inspectionTime === 0) speak("plus 2");
+      else if (inspectionTime === -2) speak("DNF");
+
       if (inspectionTime > 0) timerEl.textContent = inspectionTime;
-      else if (inspectionTime === 0) timerEl.textContent = "+2";
+      else if (inspectionTime <= 0 && inspectionTime > -2) timerEl.textContent = "+2";
       else timerEl.textContent = "DNF";
     }, 1000);
   }
@@ -670,6 +697,7 @@
   function startTimer() {
     timerState = "running";
     timerEl.className = "timer-display running";
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     startTime = performance.now();
     timerInterval = setInterval(() => {
       timerEl.textContent = ((performance.now() - startTime) / 1000).toFixed(2);
