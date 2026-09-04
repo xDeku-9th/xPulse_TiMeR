@@ -1,0 +1,794 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ultimate WCA Timer Pro</title>
+  
+  <script type="module">
+    import "https://cdn.cubing.net/js/cubing/twisty";
+  </script>
+
+  <style>
+    * { box-sizing: border-box; font-family: var(--main-font, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif); }
+    
+    :root {
+      --bg-color: #121214;
+      --card-bg: #202024;
+      --border-color: #323238;
+      --accent-color: #2196f3;
+      --timer-ready: #4caf50;
+      --timer-running: #2196f3;
+      --timer-inspection: #ff9800;
+      --text-color: #e1e1e6;
+      --main-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      background-position: center;
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      color: var(--text-color);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      transition: background-color 0.3s, color 0.3s;
+    }
+    
+    .container { width: 100%; max-width: 900px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    
+    .top-bar { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; }
+    
+    select, button, input[type="text"] {
+      background: var(--card-bg);
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      backdrop-filter: blur(8px);
+    }
+    select:hover, button:hover { opacity: 0.9; }
+
+    .session-bar {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      background: var(--card-bg);
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+    }
+
+    /* Settings Panel */
+    .settings-panel {
+      width: 100%;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 15px;
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      backdrop-filter: blur(10px);
+    }
+    .settings-panel.active { display: flex; }
+    
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+    }
+
+    .setting-item { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; }
+    .setting-item label { color: #888; text-transform: uppercase; font-size: 10px; font-weight: bold; }
+    .setting-item input[type="color"] { width: 100%; height: 34px; border: 1px solid var(--border-color); background: none; border-radius: 6px; cursor: pointer; }
+
+    .scramble-box {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 14px;
+      width: 100%;
+      text-align: center;
+      font-size: 1.1rem;
+      font-family: monospace;
+      line-height: 1.4;
+      min-height: 60px;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+      backdrop-filter: blur(8px);
+    }
+
+    .preview {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      min-height: 200px;
+      backdrop-filter: blur(8px);
+    }
+    
+    twisty-player { width: 100%; max-width: 300px; height: 200px; }
+
+    .timer-display { font-size: 85px; font-family: monospace; font-weight: bold; margin: 5px 0; user-select: none; }
+    .timer-display.inspection { color: var(--timer-inspection); }
+    .timer-display.ready { color: var(--timer-ready); }
+    .timer-display.running { color: var(--timer-running); }
+
+    .manual-entry-box { display: flex; gap: 8px; align-items: center; }
+    .manual-entry-box input { width: 140px; text-align: center; font-size: 1rem; }
+
+    .penalty-bar { display: flex; gap: 10px; align-items: center; justify-content: center; }
+    .btn-p2 { background: #e65100; color: white; }
+    .btn-dnf { background: #b71c1c; color: white; }
+
+    .stats-container { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; width: 100%; text-align: center; }
+    .stat-card { background: var(--card-bg); padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); backdrop-filter: blur(8px); }
+    .stat-card div:first-child { font-size: 10px; color: #888; text-transform: uppercase; }
+    .stat-card div:last-child { font-size: 18px; font-weight: bold; margin-top: 2px; }
+
+    .trend-card { width: 100%; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; backdrop-filter: blur(8px); }
+    .trend-title { font-size: 11px; color: #888; text-transform: uppercase; margin-bottom: 6px; }
+    canvas#chart-canvas { width: 100%; height: 100px; display: block; }
+
+    .history-section { width: 100%; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; max-height: 220px; overflow-y: auto; backdrop-filter: blur(8px); }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem; }
+    th, td { padding: 6px 8px; border-bottom: 1px solid var(--border-color); }
+    th { color: #888; font-size: 11px; }
+    .btn-del { padding: 2px 6px; font-size: 11px; background: #900; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    .btn-opt { padding: 2px 5px; font-size: 10px; margin-right: 2px; border: 1px solid var(--border-color); }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="top-bar">
+    <div class="controls">
+      <select id="eventSelect">
+        <optgroup label="Main Events">
+          <option value="222">2x2x2 Cube</option>
+          <option value="333" selected>3x3x3 Cube</option>
+          <option value="444">4x4x4 Cube</option>
+          <option value="555">5x5x5 Cube</option>
+          <option value="666">6x6x6 Cube</option>
+          <option value="777">7x7x7 Cube</option>
+        </optgroup>
+        <optgroup label="Variants">
+          <option value="333oh">3x3x3 One-Handed</option>
+          <option value="333fm">3x3x3 Fewest Moves</option>
+          <option value="333bf">3x3x3 Blindfolded</option>
+          <option value="444bf">4x4x4 Blindfolded</option>
+          <option value="555bf">5x5x5 Blindfolded</option>
+        </optgroup>
+        <optgroup label="Side Events">
+          <option value="clock">Clock</option>
+          <option value="megaminx">Megaminx</option>
+          <option value="pyraminx">Pyraminx</option>
+          <option value="skewb">Skewb</option>
+          <option value="sq1">Square-1</option>
+        </optgroup>
+      </select>
+      <button id="genBtn">Next Scramble</button>
+      <button id="manualBtn">⌨️ Manual Entry</button>
+    </div>
+
+    <div class="session-bar">
+      <span style="font-size:12px; opacity:0.8;">Session:</span>
+      <select id="sessionSelect"></select>
+      <button id="newSessionBtn">+</button>
+      <button id="delSessionBtn" style="background:#800;">X</button>
+    </div>
+
+    <div style="display: flex; gap: 6px; align-items: center;">
+      <button id="toggleSettingsBtn">⚙️ Settings</button>
+    </div>
+  </div>
+
+  <!-- SETTINGS PANEL -->
+  <div class="settings-panel" id="settingsPanel">
+    <div class="settings-grid">
+      <div class="setting-item"><label>Background Image</label><input type="file" id="bgFileInput" accept="image/*"></div>
+      <div class="setting-item"><label>Background Color</label><input type="color" id="bgColorPicker" value="#121214"></div>
+      <div class="setting-item"><label>Card Background</label><input type="color" id="cardBgColorPicker" value="#202024"></div>
+      <div class="setting-item"><label>Text Color</label><input type="color" id="textColorPicker" value="#e1e1e6"></div>
+      <div class="setting-item"><label>Timer Ready</label><input type="color" id="timerReadyColorPicker" value="#4caf50"></div>
+      <div class="setting-item"><label>Timer Running</label><input type="color" id="timerRunningColorPicker" value="#2196f3"></div>
+      <div class="setting-item"><label>Inspection Color</label><input type="color" id="timerInspectionColorPicker" value="#ff9800"></div>
+      <div class="setting-item">
+        <label>Font Family</label>
+        <select id="fontSelect">
+          <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">Default System</option>
+          <option value="monospace">Monospace</option>
+          <option value="'Courier New', Courier, monospace">Courier New</option>
+          <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+        </select>
+      </div>
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <button id="resetBgBtn" style="background: #555;">Remove BG Image</button>
+      <button id="resetColorsBtn" style="background: #555;">Reset Colors</button>
+    </div>
+  </div>
+
+  <div class="scramble-box" id="scrambleText">Generating...</div>
+  <div class="preview" id="preview-container"></div>
+
+  <div id="timer" class="timer-display">0.00</div>
+
+  <div class="manual-entry-box" id="manualContainer" style="display: none;">
+    <input type="text" id="manualInput" placeholder="12.34 or 1:02.5" />
+    <button id="submitManualBtn">Add Solve</button>
+  </div>
+
+  <div class="penalty-bar">
+    <label style="font-size:12px; cursor:pointer;"><input type="checkbox" id="inspectionToggle"> WCA 15s Inspection</label>
+    <button class="btn-p2" id="lastP2Btn">+2 Last</button>
+    <button class="btn-dnf" id="lastDnfBtn">DNF Last</button>
+  </div>
+
+  <div class="stats-container">
+    <div class="stat-card"><div>Solves</div><div id="stat-count">0</div></div>
+    <div class="stat-card"><div>Best</div><div id="stat-best">--</div></div>
+    <div class="stat-card"><div>Worst</div><div id="stat-worst">--</div></div>
+    <div class="stat-card"><div>Ao5</div><div id="stat-ao5">--</div></div>
+    <div class="stat-card"><div>Ao12</div><div id="stat-ao12">--</div></div>
+  </div>
+
+  <div class="trend-card">
+    <div class="trend-title">Solve Time Trend</div>
+    <canvas id="chart-canvas" width="880" height="100"></canvas>
+  </div>
+
+  <div class="history-section">
+    <table>
+      <thead>
+        <tr><th>#</th><th>Time</th><th>Event</th><th>Scramble</th><th>Penalty</th><th>Action</th></tr>
+      </thead>
+      <tbody id="solve-history"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  // --- SESSIONS ---
+  let sessions = JSON.parse(localStorage.getItem("wca_sessions_v2")) || { "Default": [] };
+  let currentSession = localStorage.getItem("wca_curr_session_v2") || "Default";
+  if (!sessions[currentSession]) currentSession = Object.keys(sessions)[0];
+
+  const sessionSelect = document.getElementById("sessionSelect");
+
+  function updateSessionSelect() {
+    sessionSelect.innerHTML = "";
+    Object.keys(sessions).forEach(s => {
+      const opt = document.createElement("option");
+      opt.value = s;
+      opt.textContent = `${s} (${sessions[s].length})`;
+      if (s === currentSession) opt.selected = true;
+      sessionSelect.appendChild(opt);
+    });
+  }
+
+  document.getElementById("newSessionBtn").onclick = () => {
+    const name = prompt("New Session Name:");
+    if (name && !sessions[name]) {
+      sessions[name] = [];
+      currentSession = name;
+      saveAll();
+    }
+  };
+
+  document.getElementById("delSessionBtn").onclick = () => {
+    if (Object.keys(sessions).length <= 1) return alert("Must keep at least 1 session.");
+    if (confirm(`Delete session "${currentSession}"?`)) {
+      delete sessions[currentSession];
+      currentSession = Object.keys(sessions)[0];
+      saveAll();
+    }
+  };
+
+  sessionSelect.onchange = (e) => {
+    currentSession = e.target.value;
+    saveAll();
+  };
+
+  function saveAll() {
+    localStorage.setItem("wca_sessions_v2", JSON.stringify(sessions));
+    localStorage.setItem("wca_curr_session_v2", currentSession);
+    updateSessionSelect();
+    updateStatsAndHistory();
+  }
+
+  // --- COMPLETE SCRAMBLE GENERATORS ---
+  const mods = ["", "'", "2"];
+
+  function gen2x2() {
+    const moves = ["U", "R", "F"];
+    let scramble = [], last = "";
+    for (let i = 0; i < 11; i++) {
+      let valid = moves.filter(m => m !== last);
+      let chosen = valid[Math.floor(Math.random() * valid.length)];
+      scramble.push(chosen + mods[Math.floor(Math.random() * mods.length)]);
+      last = chosen;
+    }
+    return scramble.join(" ");
+  }
+
+  function genNxN(dim) {
+    if (dim === 2) return gen2x2();
+    const axes = [
+      { name: 'U', opp: 'D' }, { name: 'D', opp: 'U' },
+      { name: 'R', opp: 'L' }, { name: 'L', opp: 'R' },
+      { name: 'F', opp: 'B' }, { name: 'B', opp: 'F' }
+    ];
+    const len = { 3: 21, 4: 40, 5: 60, 6: 80, 7: 100 }[dim] || 21;
+    let scramble = [], lastAxis = "", secondLastAxis = "";
+
+    for (let i = 0; i < len; i++) {
+      let valid = axes.filter(a => a.name !== lastAxis && !(a.name === secondLastAxis && a.opp === lastAxis));
+      let chosenAxis = valid[Math.floor(Math.random() * valid.length)];
+      let move = chosenAxis.name;
+      if (dim > 3) {
+        let maxSlices = Math.floor(dim / 2);
+        let slice = Math.floor(Math.random() * maxSlices) + 1;
+        if (slice === 2) move += "w";
+        else if (slice > 2) move = slice + move + "w";
+      }
+      scramble.push(move + mods[Math.floor(Math.random() * mods.length)]);
+      secondLastAxis = lastAxis;
+      lastAxis = chosenAxis.name;
+    }
+    return scramble.join(" ");
+  }
+
+  function genMegaminx() {
+    let lines = [];
+    for (let l = 0; l < 7; l++) {
+      let line = [];
+      for (let i = 0; i < 10; i++) line.push((i % 2 === 0 ? "R" : "D") + (Math.random() > 0.5 ? "++" : "--"));
+      line.push("U" + (Math.random() > 0.5 ? "'" : ""));
+      lines.push(line.join(" "));
+    }
+    return lines.join("\n");
+  }
+
+  function genSquare1() {
+    let seq = [];
+    for (let i = 0; i < 12; i++) {
+      let top = Math.floor(Math.random() * 12) - 5;
+      let bot = Math.floor(Math.random() * 12) - 5;
+      if (top === 0 && bot === 0) { i--; continue; }
+      seq.push(`(${top},${bot})`);
+    }
+    return seq.join(" / ") + " /";
+  }
+
+  function genPyraminx() {
+    const mainMoves = ["U", "L", "R", "B"], tips = ["u", "l", "r", "b"];
+    let scramble = [], last = "";
+    for (let i = 0; i < 11; i++) {
+      let valid = mainMoves.filter(m => m !== last);
+      let chosen = valid[Math.floor(Math.random() * valid.length)];
+      scramble.push(chosen + (Math.random() > 0.5 ? "'" : ""));
+      last = chosen;
+    }
+    tips.forEach(t => { if (Math.random() > 0.33) scramble.push(t + (Math.random() > 0.5 ? "'" : "")); });
+    return scramble.join(" ");
+  }
+
+  function genClock() {
+    const getRandomAmount = () => {
+      const val = Math.floor(Math.random() * 12) - 5;
+      return val >= 0 ? `${val}+` : `${Math.abs(val)}-`;
+    };
+    const frontPositions = ["UR", "DR", "DL", "UL", "U", "R", "D", "L", "ALL"];
+    const backPositions = ["U", "R", "D", "L", "ALL"];
+    const pinNames = ["UR", "DR", "DL", "UL"];
+    let seq = [];
+    frontPositions.forEach(pos => seq.push(`${pos}${getRandomAmount()}`));
+    seq.push("y2");
+    backPositions.forEach(pos => seq.push(`${pos}${getRandomAmount()}`));
+    pinNames.forEach(pin => { if (Math.random() > 0.5) seq.push(pin); });
+    return seq.join(" ");
+  }
+
+  function genSkewb() {
+    const moves = ["R", "L", "U", "B"];
+    let scramble = [], last = "";
+    for (let i = 0; i < 11; i++) {
+      let valid = moves.filter(m => m !== last);
+      let chosen = valid[Math.floor(Math.random() * valid.length)];
+      scramble.push(chosen + (Math.random() > 0.5 ? "'" : ""));
+      last = chosen;
+    }
+    return scramble.join(" ");
+  }
+
+  let currentScramble = "";
+  function refresh() {
+    const ev = document.getElementById("eventSelect").value;
+    if (["222","333","444","555","666","777","333oh","333fm","333bf","444bf","555bf"].includes(ev)) {
+      let dim = 3;
+      if (ev === "222") dim = 2;
+      else if (["444", "444bf"].includes(ev)) dim = 4;
+      else if (["555", "555bf"].includes(ev)) dim = 5;
+      else if (ev === "666") dim = 6;
+      else if (ev === "777") dim = 7;
+      currentScramble = genNxN(dim);
+    } else if (ev === "megaminx") currentScramble = genMegaminx();
+    else if (ev === "sq1") currentScramble = genSquare1();
+    else if (ev === "pyraminx") currentScramble = genPyraminx();
+    else if (ev === "clock") currentScramble = genClock();
+    else if (ev === "skewb") currentScramble = genSkewb();
+
+    document.getElementById("scrambleText").innerText = currentScramble;
+    
+    // Update Twisty Player
+    const container = document.getElementById("preview-container");
+    container.innerHTML = "";
+    const puzzleMap = {
+      "222": "2x2x2", "333": "3x3x3", "444": "4x4x4", "555": "5x5x5",
+      "666": "6x6x6", "777": "7x7x7", "333oh": "3x3x3", "333fm": "3x3x3",
+      "333bf": "3x3x3", "444bf": "4x4x4", "555bf": "5x5x5",
+      "pyraminx": "pyraminx", "megaminx": "megaminx", "skewb": "skewb",
+      "sq1": "square1", "clock": "clock"
+    };
+
+    const player = document.createElement("twisty-player");
+    player.setAttribute("puzzle", puzzleMap[ev] || "3x3x3");
+    player.setAttribute("alg", currentScramble.replace(/\n/g, " "));
+    player.setAttribute("visualization", "2D");
+    player.setAttribute("control-panel", "none");
+    player.setAttribute("background", "none");
+    container.appendChild(player);
+  }
+
+  // --- THEME & SETTINGS ---
+  const settingsPanel = document.getElementById("settingsPanel");
+  document.getElementById("toggleSettingsBtn").onclick = () => settingsPanel.classList.toggle("active");
+
+  const bgFileInput = document.getElementById("bgFileInput");
+  const bgColorPicker = document.getElementById("bgColorPicker");
+  const cardBgColorPicker = document.getElementById("cardBgColorPicker");
+  const textColorPicker = document.getElementById("textColorPicker");
+  const timerReadyColorPicker = document.getElementById("timerReadyColorPicker");
+  const timerRunningColorPicker = document.getElementById("timerRunningColorPicker");
+  const timerInspectionColorPicker = document.getElementById("timerInspectionColorPicker");
+  const fontSelect = document.getElementById("fontSelect");
+
+  function applySettings() {
+    document.documentElement.style.setProperty("--bg-color", bgColorPicker.value);
+    document.documentElement.style.setProperty("--card-bg", cardBgColorPicker.value);
+    document.documentElement.style.setProperty("--text-color", textColorPicker.value);
+    document.documentElement.style.setProperty("--timer-ready", timerReadyColorPicker.value);
+    document.documentElement.style.setProperty("--timer-running", timerRunningColorPicker.value);
+    document.documentElement.style.setProperty("--timer-inspection", timerInspectionColorPicker.value);
+    document.documentElement.style.setProperty("--main-font", fontSelect.value);
+
+    const config = {
+      bgColor: bgColorPicker.value,
+      cardBgColor: cardBgColorPicker.value,
+      textColor: textColorPicker.value,
+      timerReady: timerReadyColorPicker.value,
+      timerRunning: timerRunningColorPicker.value,
+      timerInspection: timerInspectionColorPicker.value,
+      font: fontSelect.value
+    };
+    localStorage.setItem("wca_theme_config_v2", JSON.stringify(config));
+  }
+
+  bgFileInput.onchange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        document.body.style.backgroundImage = `url("${event.target.result}")`;
+        localStorage.setItem("wca_bg_img_v2", event.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  document.getElementById("resetBgBtn").onclick = () => {
+    document.body.style.backgroundImage = "none";
+    localStorage.removeItem("wca_bg_img_v2");
+    bgFileInput.value = "";
+  };
+
+  document.getElementById("resetColorsBtn").onclick = () => {
+    bgColorPicker.value = "#121214";
+    cardBgColorPicker.value = "#202024";
+    textColorPicker.value = "#e1e1e6";
+    timerReadyColorPicker.value = "#4caf50";
+    timerRunningColorPicker.value = "#2196f3";
+    timerInspectionColorPicker.value = "#ff9800";
+    fontSelect.value = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    applySettings();
+  };
+
+  [bgColorPicker, cardBgColorPicker, textColorPicker, timerReadyColorPicker, timerRunningColorPicker, timerInspectionColorPicker, fontSelect].forEach(el => {
+    el.oninput = applySettings;
+  });
+
+  function loadSavedSettings() {
+    const savedBg = localStorage.getItem("wca_bg_img_v2");
+    if (savedBg) document.body.style.backgroundImage = `url("${savedBg}")`;
+
+    const savedConfig = JSON.parse(localStorage.getItem("wca_theme_config_v2"));
+    if (savedConfig) {
+      bgColorPicker.value = savedConfig.bgColor || "#121214";
+      cardBgColorPicker.value = savedConfig.cardBgColor || "#202024";
+      textColorPicker.value = savedConfig.textColor || "#e1e1e6";
+      timerReadyColorPicker.value = savedConfig.timerReady || "#4caf50";
+      timerRunningColorPicker.value = savedConfig.timerRunning || "#2196f3";
+      timerInspectionColorPicker.value = savedConfig.timerInspection || "#ff9800";
+      fontSelect.value = savedConfig.font || "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      applySettings();
+    }
+  }
+
+  // --- MANUAL TIME ENTRY ---
+  const manualContainer = document.getElementById("manualContainer");
+  const manualInput = document.getElementById("manualInput");
+  const manualBtn = document.getElementById("manualBtn");
+  const submitManualBtn = document.getElementById("submitManualBtn");
+
+  function parseTimeString(str) {
+    if (!str) return null;
+    str = str.trim();
+    if (str.includes(":")) {
+      const parts = str.split(":");
+      const mins = parseFloat(parts[0]);
+      const secs = parseFloat(parts[1]);
+      if (isNaN(mins) || isNaN(secs)) return null;
+      return (mins * 60) + secs;
+    }
+    const val = parseFloat(str);
+    return isNaN(val) ? null : val;
+  }
+
+  function handleManualSubmit() {
+    const parsed = parseTimeString(manualInput.value);
+    if (parsed !== null && parsed > 0) {
+      recordSolve(parsed, "OK");
+      manualInput.value = "";
+      manualContainer.style.display = "none";
+    } else {
+      alert("Please enter a valid time (e.g. 12.34 or 1:05.2)");
+    }
+  }
+
+  manualBtn.onclick = () => {
+    manualContainer.style.display = manualContainer.style.display === "none" ? "flex" : "none";
+    if (manualContainer.style.display === "flex") manualInput.focus();
+  };
+
+  submitManualBtn.onclick = handleManualSubmit;
+  manualInput.onkeydown = (e) => { if (e.key === "Enter") handleManualSubmit(); };
+
+  // --- TIMER & INSPECTION ENGINE ---
+  let timerState = "stopped", startTime = 0, timerInterval = null, inspectionInterval = null;
+  let inspectionTime = 15;
+  const timerEl = document.getElementById("timer");
+  const useInspection = document.getElementById("inspectionToggle");
+
+  window.addEventListener("keydown", (e) => {
+    if (["INPUT", "BUTTON", "SELECT"].includes(document.activeElement.tagName)) return;
+    
+    if (e.key.toLowerCase() === "m") {
+      e.preventDefault();
+      manualContainer.style.display = manualContainer.style.display === "none" ? "flex" : "none";
+      if (manualContainer.style.display === "flex") manualInput.focus();
+      return;
+    }
+
+    if (e.code === "Space" && !e.repeat) {
+      e.preventDefault();
+      if (timerState === "stopped") {
+        if (useInspection.checked) {
+          startInspection();
+        } else {
+          timerState = "primed";
+          timerEl.className = "timer-display ready";
+        }
+      } else if (timerState === "inspecting") {
+        timerState = "primed";
+        clearInterval(inspectionInterval);
+        timerEl.className = "timer-display ready";
+      } else if (timerState === "running") {
+        stopTimer();
+      }
+    }
+  });
+
+  window.addEventListener("keyup", (e) => {
+    if (["INPUT", "BUTTON", "SELECT"].includes(document.activeElement.tagName)) return;
+    if (e.code === "Space" && timerState === "primed") {
+      startTimer();
+    }
+  });
+
+  function startInspection() {
+    timerState = "inspecting";
+    inspectionTime = 15;
+    timerEl.className = "timer-display inspection";
+    timerEl.textContent = inspectionTime;
+    inspectionInterval = setInterval(() => {
+      inspectionTime--;
+      if (inspectionTime > 0) timerEl.textContent = inspectionTime;
+      else if (inspectionTime === 0) timerEl.textContent = "+2";
+      else timerEl.textContent = "DNF";
+    }, 1000);
+  }
+
+  function startTimer() {
+    timerState = "running";
+    timerEl.className = "timer-display running";
+    startTime = Date.now();
+    timerInterval = setInterval(() => {
+      timerEl.textContent = ((Date.now() - startTime) / 1000).toFixed(2);
+    }, 10);
+  }
+
+  function stopTimer() {
+    clearInterval(timerInterval);
+    timerState = "stopped";
+    timerEl.className = "timer-display";
+    let finalTime = parseFloat(((Date.now() - startTime) / 1000).toFixed(2));
+    
+    let penalty = "OK";
+    if (useInspection.checked) {
+      if (inspectionTime <= 0 && inspectionTime > -2) penalty = "+2";
+      else if (inspectionTime <= -2) penalty = "DNF";
+    }
+
+    recordSolve(finalTime, penalty);
+  }
+
+  function recordSolve(timeSec, penalty = "OK") {
+    timerEl.textContent = timeSec.toFixed(2);
+    const newSolve = {
+      id: Date.now(),
+      time: timeSec,
+      penalty: penalty,
+      event: document.getElementById("eventSelect").value,
+      scramble: currentScramble
+    };
+    sessions[currentSession].unshift(newSolve);
+    saveAll();
+    refresh();
+  }
+
+  // --- PENALTIES & CALCULATIONS ---
+  document.getElementById("lastP2Btn").onclick = () => togglePenalty(0, "+2");
+  document.getElementById("lastDnfBtn").onclick = () => togglePenalty(0, "DNF");
+
+  function togglePenalty(index, penaltyType) {
+    let list = sessions[currentSession];
+    if (!list[index]) return;
+    list[index].penalty = list[index].penalty === penaltyType ? "OK" : penaltyType;
+    saveAll();
+  }
+
+  function getEffectiveTime(solve) {
+    if (solve.penalty === "DNF") return Infinity;
+    if (solve.penalty === "+2") return solve.time + 2;
+    return solve.time;
+  }
+
+  function calcAoN(solvesList, n) {
+    if (solvesList.length < n) return "--";
+    const subset = solvesList.slice(0, n).map(getEffectiveTime);
+    const dnfCount = subset.filter(t => t === Infinity).length;
+    if (dnfCount > 1) return "DNF";
+
+    subset.sort((a, b) => a - b);
+    subset.pop(); subset.shift();
+    const sum = subset.reduce((a, b) => a + b, 0);
+    return (sum / subset.length).toFixed(2);
+  }
+
+  // --- STATS & HISTORY RENDER ---
+  function updateStatsAndHistory() {
+    const list = sessions[currentSession];
+    const tableBody = document.getElementById("solve-history");
+    tableBody.innerHTML = "";
+
+    document.getElementById("stat-count").textContent = list.length;
+
+    const validTimes = list.map(getEffectiveTime).filter(t => t !== Infinity);
+    document.getElementById("stat-best").textContent = validTimes.length ? Math.min(...validTimes).toFixed(2) : "--";
+    document.getElementById("stat-worst").textContent = validTimes.length ? Math.max(...validTimes).toFixed(2) : "--";
+    document.getElementById("stat-ao5").textContent = calcAoN(list, 5);
+    document.getElementById("stat-ao12").textContent = calcAoN(list, 12);
+
+    list.forEach((s, idx) => {
+      let displayTime = s.time.toFixed(2);
+      if (s.penalty === "+2") displayTime = (s.time + 2).toFixed(2) + "+";
+      if (s.penalty === "DNF") displayTime = "DNF";
+
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${list.length - idx}</td>
+        <td><strong>${displayTime}</strong></td>
+        <td>${s.event}</td>
+        <td style="font-size:11px; opacity:0.7;">${s.scramble}</td>
+        <td>
+          <button class="btn-opt" onclick="togglePenalty(${idx}, '+2')">+2</button>
+          <button class="btn-opt" onclick="togglePenalty(${idx}, 'DNF')">DNF</button>
+        </td>
+        <td><button class="btn-del" onclick="deleteSolve(${s.id})">X</button></td>
+      `;
+      tableBody.appendChild(row);
+    });
+
+    drawTrendGraph(list);
+  }
+
+  window.deleteSolve = (id) => {
+    sessions[currentSession] = sessions[currentSession].filter(s => s.id !== id);
+    saveAll();
+  };
+
+  function drawTrendGraph(solvesList) {
+    const canvas = document.getElementById("chart-canvas");
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const validSolves = solvesList.filter(s => s.penalty !== "DNF");
+    if (validSolves.length < 2) {
+      ctx.fillStyle = "#666";
+      ctx.font = "12px monospace";
+      ctx.fillText("Log at least 2 non-DNF solves to render the trend graph.", 10, 50);
+      return;
+    }
+
+    const chronological = [...validSolves].reverse().map(getEffectiveTime);
+    const minTime = Math.min(...chronological), maxTime = Math.max(...chronological);
+    const range = (maxTime - minTime) || 1;
+    const padding = 15;
+    const graphWidth = canvas.width - (padding * 2), graphHeight = canvas.height - (padding * 2);
+
+    ctx.beginPath();
+    ctx.strokeStyle = "#2196f3";
+    ctx.lineWidth = 2;
+
+    chronological.forEach((t, i) => {
+      const x = padding + (i / (chronological.length - 1)) * graphWidth;
+      const y = canvas.height - padding - ((t - minTime) / range) * graphHeight;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    chronological.forEach((t, i) => {
+      const x = padding + (i / (chronological.length - 1)) * graphWidth;
+      const y = canvas.height - padding - ((t - minTime) / range) * graphHeight;
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fillStyle = "#4caf50";
+      ctx.fill();
+    });
+  }
+
+  document.getElementById("eventSelect").onchange = refresh;
+  document.getElementById("genBtn").onclick = refresh;
+
+  loadSavedSettings();
+  updateSessionSelect();
+  refresh();
+  updateStatsAndHistory();
+</script>
+</body>
+</html>
