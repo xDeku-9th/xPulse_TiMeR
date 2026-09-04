@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -17,6 +17,7 @@
       --card-bg: #202024;
       --border-color: #323238;
       --accent-color: #2196f3;
+      --timer-holding: #f44336;
       --timer-ready: #4caf50;
       --timer-running: #2196f3;
       --timer-inspection: #ff9800;
@@ -122,8 +123,9 @@
     
     twisty-player { width: 100%; max-width: 300px; height: 200px; }
 
-    .timer-display { font-size: 85px; font-family: monospace; font-weight: bold; margin: 5px 0; user-select: none; }
+    .timer-display { font-size: 85px; font-family: monospace; font-weight: bold; margin: 5px 0; user-select: none; transition: color 0.15s ease; }
     .timer-display.inspection { color: var(--timer-inspection); }
+    .timer-display.holding { color: var(--timer-holding); }
     .timer-display.ready { color: var(--timer-ready); }
     .timer-display.running { color: var(--timer-running); }
 
@@ -310,7 +312,7 @@
     updateStatsAndHistory();
   }
 
-  // --- COMPLETE SCRAMBLE GENERATORS ---
+  // --- SCRAMBLE GENERATORS ---
   const mods = ["", "'", "2"];
 
   function gen2x2() {
@@ -434,7 +436,7 @@
 
     document.getElementById("scrambleText").innerText = currentScramble;
     
-    // Update Twisty Player
+    // Twisty Player rendering
     const container = document.getElementById("preview-container");
     container.innerHTML = "";
     const puzzleMap = {
@@ -445,13 +447,15 @@
       "sq1": "square1", "clock": "clock"
     };
 
-    const player = document.createElement("twisty-player");
-    player.setAttribute("puzzle", puzzleMap[ev] || "3x3x3");
-    player.setAttribute("alg", currentScramble.replace(/\n/g, " "));
-    player.setAttribute("visualization", "2D");
-    player.setAttribute("control-panel", "none");
-    player.setAttribute("background", "none");
-    container.appendChild(player);
+    if (customElements.get('twisty-player')) {
+      const player = document.createElement("twisty-player");
+      player.setAttribute("puzzle", puzzleMap[ev] || "3x3x3");
+      player.setAttribute("alg", currentScramble.replace(/\n/g, " "));
+      player.setAttribute("visualization", "2D");
+      player.setAttribute("control-panel", "none");
+      player.setAttribute("background", "none");
+      container.appendChild(player);
+    }
   }
 
   // --- THEME & SETTINGS ---
@@ -577,15 +581,21 @@
   submitManualBtn.onclick = handleManualSubmit;
   manualInput.onkeydown = (e) => { if (e.key === "Enter") handleManualSubmit(); };
 
-  // --- TIMER & INSPECTION ENGINE ---
-  let timerState = "stopped", startTime = 0, timerInterval = null, inspectionInterval = null;
+  // --- UNIFIED TIMER & INSPECTION ENGINE ---
+  // States: 'stopped', 'inspecting', 'holding', 'ready', 'running'
+  let timerState = "stopped";
+  let startTime = 0;
+  let timerInterval = null;
+  let inspectionInterval = null;
+  let holdTimeout = null;
   let inspectionTime = 15;
+
   const timerEl = document.getElementById("timer");
   const useInspection = document.getElementById("inspectionToggle");
 
   window.addEventListener("keydown", (e) => {
     if (["INPUT", "BUTTON", "SELECT"].includes(document.activeElement.tagName)) return;
-    
+
     if (e.key.toLowerCase() === "m") {
       e.preventDefault();
       manualContainer.style.display = manualContainer.style.display === "none" ? "flex" : "none";
@@ -593,29 +603,54 @@
       return;
     }
 
-    if (e.code === "Space" && !e.repeat) {
+    if (e.code === "Space") {
       e.preventDefault();
+      if (e.repeat) return;
+
+      if (timerState === "running") {
+        stopTimer();
+        return;
+      }
+
       if (timerState === "stopped") {
         if (useInspection.checked) {
           startInspection();
         } else {
-          timerState = "primed";
-          timerEl.className = "timer-display ready";
+          timerState = "holding";
+          timerEl.className = "timer-display holding";
+          holdTimeout = setTimeout(() => {
+            timerState = "ready";
+            timerEl.className = "timer-display ready";
+          }, 300);
         }
       } else if (timerState === "inspecting") {
-        timerState = "primed";
-        clearInterval(inspectionInterval);
-        timerEl.className = "timer-display ready";
-      } else if (timerState === "running") {
-        stopTimer();
+        timerState = "holding";
+        timerEl.className = "timer-display holding";
+        holdTimeout = setTimeout(() => {
+          timerState = "ready";
+          clearInterval(inspectionInterval);
+          timerEl.className = "timer-display ready";
+        }, 300);
       }
     }
   });
 
   window.addEventListener("keyup", (e) => {
     if (["INPUT", "BUTTON", "SELECT"].includes(document.activeElement.tagName)) return;
-    if (e.code === "Space" && timerState === "primed") {
-      startTimer();
+
+    if (e.code === "Space") {
+      if (timerState === "ready") {
+        startTimer();
+      } else if (timerState === "holding") {
+        clearTimeout(holdTimeout);
+        if (useInspection.checked && inspectionInterval) {
+          timerState = "inspecting";
+          timerEl.className = "timer-display inspection";
+        } else {
+          timerState = "stopped";
+          timerEl.className = "timer-display";
+        }
+      }
     }
   });
 
@@ -635,9 +670,9 @@
   function startTimer() {
     timerState = "running";
     timerEl.className = "timer-display running";
-    startTime = Date.now();
+    startTime = performance.now();
     timerInterval = setInterval(() => {
-      timerEl.textContent = ((Date.now() - startTime) / 1000).toFixed(2);
+      timerEl.textContent = ((performance.now() - startTime) / 1000).toFixed(2);
     }, 10);
   }
 
@@ -645,8 +680,8 @@
     clearInterval(timerInterval);
     timerState = "stopped";
     timerEl.className = "timer-display";
-    let finalTime = parseFloat(((Date.now() - startTime) / 1000).toFixed(2));
-    
+    let finalTime = parseFloat(((performance.now() - startTime) / 1000).toFixed(2));
+
     let penalty = "OK";
     if (useInspection.checked) {
       if (inspectionTime <= 0 && inspectionTime > -2) penalty = "+2";
@@ -789,63 +824,6 @@
   updateSessionSelect();
   refresh();
   updateStatsAndHistory();
-  <script>
-  let timerState = 'idle'; // 'idle', 'holding', 'ready', 'running'
-  let holdTimeout = null;
-  let startTime = 0;
-  let timerInterval = null;
-
-  // Adjust 'timer' if your timer display uses a different ID
-  const timerDisplay = document.getElementById('timer') || document.querySelector('.timer');
-
-  window.addEventListener('keydown', (e) => {
-    if (e.code !== 'Space') return;
-    e.preventDefault(); // Prevents page scrolling
-
-    if (timerState === 'running') {
-      stopTimer();
-      timerState = 'idle';
-      return;
-    }
-
-    if (e.repeat) return;
-
-    if (timerState === 'idle') {
-      timerState = 'holding';
-      if (timerDisplay) timerDisplay.style.color = 'red';
-
-      holdTimeout = setTimeout(() => {
-        timerState = 'ready';
-        if (timerDisplay) timerDisplay.style.color = 'limegreen';
-      }, 300);
-    }
-  });
-
-  window.addEventListener('keyup', (e) => {
-    if (e.code !== 'Space') return;
-
-    if (timerState === 'ready') {
-      startTimer();
-      timerState = 'running';
-      if (timerDisplay) timerDisplay.style.color = '';
-    } else if (timerState === 'holding') {
-      clearTimeout(holdTimeout);
-      timerState = 'idle';
-      if (timerDisplay) timerDisplay.style.color = '';
-    }
-  });
-
-  function startTimer() {
-    startTime = performance.now();
-    timerInterval = setInterval(() => {
-      const elapsed = (performance.now() - startTime) / 1000;
-      if (timerDisplay) timerDisplay.textContent = elapsed.toFixed(2);
-    }, 10);
-  }
-
-  function stopTimer() {
-    clearInterval(timerInterval);
-  }
 </script>
 </body>
 </html>
